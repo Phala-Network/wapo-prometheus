@@ -9,7 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-  "net/url"
+	"net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -154,14 +154,14 @@ func processNewLines(reader *bufio.Reader) {
 			beaconRequests.Inc()
 		}
 
-    // check for /ipfs/{cid} path
-    if parsedURL, parseErr := url.Parse(uri); parseErr == nil {
-      r := regexp.MustCompile(`/ipfs/([^/]+)`)
-      if matches := r.FindStringSubmatch(parsedURL.Path); len(matches) > 1 {
-        cid := matches[1]
-        incrementCIDCount(cid)
-      }
-    }
+		// check for /ipfs/{cid} path
+		if parsedURL, parseErr := url.Parse(uri); parseErr == nil {
+			r := regexp.MustCompile(`/ipfs/([^/]+)`)
+			if matches := r.FindStringSubmatch(parsedURL.Path); len(matches) > 1 {
+				cid := matches[1]
+				incrementCIDCount(cid)
+			}
+		}
 	}
 }
 
@@ -214,9 +214,9 @@ func updateMetrics() {
 		}{cid, count})
 	}
 	iter.Release()
-  if len(cidCounts) > 0 {
-    log.Printf("Finished iterating, found %d CIDs", len(cidCounts))
-  }
+	if len(cidCounts) > 0 {
+		log.Printf("Finished iterating, found %d CIDs", len(cidCounts))
+	}
 
 	uniqueCIDsCount.Set(float64(len(cidCounts)))
 
@@ -307,26 +307,26 @@ func main() {
 	log.Println("Starting metrics updater")
 	go updateMetricsPeriodically()
 
-  http.Handle("/metrics", promhttp.Handler())
-  http.HandleFunc("/health", healthCheck)
-  http.HandleFunc("/", notFoundHandler)
+	http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/health", healthCheck)
+	http.HandleFunc("/", notFoundHandler)
 
 	listenAddr := fmt.Sprintf("%s:%d", bind, port)
 	log.Printf("Starting server on %s", listenAddr)
-	
+
 	server := &http.Server{
 		Addr:    listenAddr,
 		Handler: http.DefaultServeMux,
 	}
-	
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Error starting server: %v", err)
 		}
 	}()
-	
+
 	log.Println("Server started successfully")
-	
+
 	// Keep the main goroutine running
 	select {}
 }
@@ -342,4 +342,3 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("404 - Not Found"))
 	log.Printf("404 Not Found: %s", r.URL.Path)
 }
-	
