@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+  "net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -153,13 +154,14 @@ func processNewLines(reader *bufio.Reader) {
 			beaconRequests.Inc()
 		}
 
-		// Check for /ipfs/{cid} path
-		r := regexp.MustCompile(`/ipfs/([^/]+)`)
-		matches := r.FindStringSubmatch(uri)
-		if len(matches) > 1 {
-			cid := matches[1]
-			incrementCIDCount(cid)
-		}
+    // check for /ipfs/{cid} path
+    if parsedURL, parseErr := url.Parse(uri); parseErr == nil {
+      r := regexp.MustCompile(`/ipfs/([^/]+)`)
+      if matches := r.FindStringSubmatch(parsedURL.Path); len(matches) > 1 {
+        cid := matches[1]
+        incrementCIDCount(cid)
+      }
+    }
 	}
 }
 
@@ -197,13 +199,11 @@ func updateMetrics() {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
-	log.Println("Acquired database lock")
 	var cidCounts []struct {
 		CID   string
 		Count uint64
 	}
 
-	log.Println("Creating database iterator")
 	iter := db.NewIterator(nil, nil)
 	for iter.Next() {
 		cid := string(iter.Key())
@@ -214,17 +214,16 @@ func updateMetrics() {
 		}{cid, count})
 	}
 	iter.Release()
-	log.Printf("Finished iterating, found %d CIDs", len(cidCounts))
+  if len(cidCounts) > 0 {
+    log.Printf("Finished iterating, found %d CIDs", len(cidCounts))
+  }
 
-	log.Println("Updating uniqueCIDsCount metric")
 	uniqueCIDsCount.Set(float64(len(cidCounts)))
 
-	log.Println("Sorting CID counts")
 	sort.Slice(cidCounts, func(i, j int) bool {
 		return cidCounts[i].Count > cidCounts[j].Count
 	})
 
-	log.Println("Resetting and updating cidRequests metric")
 	cidRequests.Reset()
 	for i, cc := range cidCounts {
 		if i >= 10 {
@@ -308,9 +307,10 @@ func main() {
 	log.Println("Starting metrics updater")
 	go updateMetricsPeriodically()
 
-	http.Handle("/metrics", promhttp.Handler())
-	http.HandleFunc("/health", healthCheck)
-	
+  http.Handle("/metrics", promhttp.Handler())
+  http.HandleFunc("/health", healthCheck)
+  http.HandleFunc("/", notFoundHandler)
+
 	listenAddr := fmt.Sprintf("%s:%d", bind, port)
 	log.Printf("Starting server on %s", listenAddr)
 	
@@ -336,3 +336,10 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 	log.Println("Health check request received")
 }
+
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte("404 - Not Found"))
+	log.Printf("404 Not Found: %s", r.URL.Path)
+}
+	
