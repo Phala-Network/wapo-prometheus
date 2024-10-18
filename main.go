@@ -50,6 +50,12 @@ var (
 			Help: "Total number of requests to the /_/beacon path",
 		},
 	)
+	quoteRequests = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wapo_quote_requests_total",
+			Help: "Total number of requests to the /_/quote path",
+		},
+	)
 	dailyRequestCount = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wapo_ipfs_daily_requests_total",
@@ -68,6 +74,7 @@ func init() {
 	prometheus.MustRegister(cidRequests)
 	prometheus.MustRegister(uniqueCIDsCount)
 	prometheus.MustRegister(beaconRequests)
+  prometheus.MustRegister(quoteRequests)
 	prometheus.MustRegister(dailyRequestCount)
 }
 
@@ -193,6 +200,9 @@ func processNewLines(reader *bufio.Reader) {
 		// Check for /_/beacon path
 		if uri == "/_/beacon" {
 			beaconRequests.Inc()
+		}
+		if uri == "/_/quote" {
+			quoteRequests.Inc()
 		}
 
 		// check for /ipfs/{cid} path
